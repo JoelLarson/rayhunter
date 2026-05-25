@@ -310,9 +310,7 @@
                     <img src="/orca.svg" alt="Rayhunter" class="h-20 w-20" />
                     <div class="flex flex-col gap-1">
                         <h1 class="text-3xl font-bold text-white tracking-tight">Connect Your Device</h1>
-                        <p class="text-slate-400 text-sm max-w-sm">
-                            Select the cellular hotspot device you wish to install Rayhunter onto.
-                        </p>
+                        <p class="text-slate-400 text-sm whitespace-nowrap">Select the cellular hotspot device you wish to install Rayhunter onto.</p>
                     </div>
                 </div>
 
