@@ -549,7 +549,7 @@
                 <div class="flex flex-col gap-2 max-w-md">
                     <h2 class="text-2xl font-bold text-white">Installation Successful!</h2>
                     <p class="text-slate-400 text-sm">
-                        The Rayhunter monitoring daemon has been successfully installed and started on your hotspot device.
+                        Rayhunter has been successfully installed and started on your cellular hotspot device.
                     </p>
                 </div>
 
