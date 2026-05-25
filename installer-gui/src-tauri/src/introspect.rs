@@ -17,9 +17,6 @@ impl Command<'_> {
             .collect();
 
         Command {
-            // this resulting vector contains the subcommands that are found in both
-            // command.get_subcommands() and modifiers::subcommand_modifiers() in the order defined
-            // by subcommand_modifiers()
             subcommands: modifiers::subcommand_modifiers()
                 .iter()
                 .filter_map(|modifier| {
@@ -80,9 +77,6 @@ impl Subcommand<'_> {
             .collect();
 
         Subcommand {
-            // this resulting vector contains the arguments that are found in both
-            // command.get_arguments() and modifier.arg_modifiers in the order defined by
-            // arg_modifiers
             arguments: modifier
                 .arg_modifiers
                 .iter()

@@ -1,43 +1,18 @@
-//! Adds or "modifies" installer CLI attributes for use in the GUI.
-//!
-//! This module contains little logic (outside of tests) and instead just provides
-//! metadata about CLI commands and options for the GUI installer.
-//!
-//! If we like this approach, I think we should consider renaming this file some
-//! thing like gui_modifiers.rs and moving it into the crate for the CLI installer. I think
-//! this would simplify development as any breaking changes to the CLI installer interface would cause
-//! tests to fail in its own crate instead of installer-gui and it'd help to keep the two interfaces
-//! to the installer in sync.
-
 #[derive(Debug, Copy, Clone)]
 pub struct ArgumentModifier<'a> {
-    /// The name of the argument on the CLI.
     pub cli_name: &'a str,
-    /// The text for displaying this argument in the GUI.
     pub gui_label: &'a str,
-    /// Whether this argument should be hidden behind a menu for "advanced" options.
     pub advanced: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct SubcommandModifier<'a> {
-    /// The name of the subcommand on the CLI.
     pub command: &'a str,
-    /// The text for displaying this subcommand in the GUI.
     pub gui_label: &'a str,
-    /// Modifications to the arguments of this subcommand. The order arguments are defined in this
-    /// vector will match the order the arguments are displayed in the GUI.
     pub arg_modifiers: Vec<ArgumentModifier<'a>>,
 }
 
-/// Provides "modifiers" or additional metadata about each subcommand.
-///
-/// The order of the subcommands in the returned vector is the same order that subcommands will be
-/// shown in the GUI.
 pub fn subcommand_modifiers() -> Vec<SubcommandModifier<'static>> {
-    // just for convenience, we define common ArgumentModifiers here that can be shared between
-    // subcommands. if in the future the subcommands need slightly different settings for an
-    // argument, the sharing of this code can be removed with no ill effects
     let admin_ip = ArgumentModifier {
         cli_name: "admin_ip",
         gui_label: "Admin IP",
@@ -149,9 +124,6 @@ pub fn subcommand_modifiers() -> Vec<SubcommandModifier<'static>> {
 
 #[cfg(test)]
 mod tests {
-    //! The GUI code is written to simply not include any subcommand or argument that doesn't have a
-    //! modifier defined for it. To avoid us unintentionally excluding items, the tests below ensure
-    //! every CLI option either has a modifier or is explicitly excluded from the GUI.
     use super::*;
     use std::collections::HashMap;
 
@@ -164,6 +136,8 @@ mod tests {
         vec!["util"]
     }
 
+    // These tests ensure that every new CLI option added to the rayhunter CLI installer
+    // is explicitly mapped or excluded from the GUI so they don't drift out of sync.
     #[test]
     fn test_subcommands() {
         let exclusions = excluded_subcommands();
@@ -197,7 +171,6 @@ mod tests {
     fn test_arguments() {
         let exclusions = excluded_subcommands();
 
-        // create vectors of (subcommand, argument_name) tuples
         let mut clap_args: Vec<(&str, &str)> = crate::INSTALLER_COMMAND
             .get_subcommands()
             .filter_map(|c| {

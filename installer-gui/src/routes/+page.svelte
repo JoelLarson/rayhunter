@@ -6,24 +6,18 @@
 
     let { data }: PageProps = $props();
 
-    // Wizard Screens: 'select' | 'configure' | 'installing' | 'success' | 'failure'
     let currentScreen = $state<'select' | 'configure' | 'installing' | 'success' | 'failure'>('select');
     let selectedSubcommandIndex = $state<number>(-1);
     let showAdvanced = $state<boolean>(false);
-    
-    // Store arguments values
-    // We index by flag name: e.g. { '--admin-password': '...', '--reset-config': false }
     let argsValues = $state<Record<string, any>>({});
     let installerOutput = $state<string>('');
     let installerError = $state<string>('');
     let logContainer = $state<HTMLDivElement | null>(null);
 
-    // Listen for installer output events from Tauri
     listen<string>('installer-output', (event) => {
         installerOutput += event.payload;
     });
 
-    // Track when log container updates to auto scroll
     $effect(() => {
         if (installerOutput && logContainer) {
             logContainer.scrollTop = logContainer.scrollHeight;
@@ -34,15 +28,13 @@
         selectedSubcommandIndex >= 0 ? data.subcommands[selectedSubcommandIndex] : null
     );
 
-    // Initialize argument values for the selected device
     function selectDevice(index: number) {
         selectedSubcommandIndex = index;
         const sub = data.subcommands[index];
-        const newVals: Record<string, string | boolean> = {};
+        const newVals: Record<string, any> = {};
         
         for (const arg of sub.arguments) {
             if (arg.takes_values) {
-                // Prefill default IP for --admin-ip if not set
                 if (arg.flag === '--admin-ip') {
                     newVals[arg.flag] = '192.168.0.1';
                 } else {
@@ -79,13 +71,9 @@
         installerOutput = 'Starting Rayhunter GUI Installer...\n';
         installerError = '';
 
-        // Construct argument vector
         const argsVec: string[] = [];
-        
-        // 1. Subcommand
         argsVec.push(selectedSubcommand.command);
         
-        // 2. Arguments
         for (const arg of selectedSubcommand.arguments) {
             const val = argsValues[arg.flag];
             if (arg.takes_values) {
@@ -120,7 +108,6 @@
     }
 </script>
 
-<!-- Navigation Header -->
 <div class="p-4 xl:px-8 bg-slate-900 border-b border-slate-800 flex flex-row justify-between items-center shadow-lg">
     <div class="flex items-center gap-3">
         <img src="/orca.svg" alt="Rayhunter Orca" class="h-10 w-10 animate-pulse" />
@@ -142,7 +129,6 @@
                 <path
                     fill-rule="evenodd"
                     d="M12.006 2a9.847 9.847 0 0 0-6.484 2.44 10.32 10.32 0 0 0-3.393 6.17 10.48 10.48 0 0 0 1.317 6.955 10.045 10.045 0 0 0 5.4 4.418c.504.095.683-.223.683-.494 0-.245-.01-1.052-.014-1.908-2.78.62-3.366-1.21-3.366-1.21a2.711 2.711 0 0 0-1.11-1.5c-.907-.637.07-.621.07-.621.317.044.62.163.885.346.266.183.487.426.647.71.135.253.318.476.538.655a2.079 2.079 0 0 0 2.37.196c.045-.52.27-1.006.635-1.37-2.219-.259-4.554-1.138-4.554-5.07a4.022 4.022 0 0 1 1.031-2.75 3.77 3.77 0 0 1 .096-2.713s.839-.275 2.749 1.05a9.26 9.26 0 0 1 5.004 0c1.906-1.325 2.74-1.05 2.74-1.05.37.858.406 1.828.101 2.713a4.017 4.017 0 0 1 1.029 2.75c0 3.939-2.339 4.805-4.564 5.058a2.471 2.471 0 0 1 .679 1.897c0 1.372-.012 2.477-.012 2.814 0 .272.18.592.687.492a10.05 10.05 0 0 0 5.388-4.421 10.473 10.473 0 0 0 1.313-6.948 10.32 10.32 0 0 0-3.39-6.165A9.847 9.847 0 0 0 12.007 2Z"
-                    clip-rule="evenodd"
                 />
             </svg>
             <span>Report Issue</span>
@@ -172,11 +158,9 @@
     </div>
 </div>
 
-<!-- Main Wizard Interface -->
 <div class="min-h-[calc(100vh-73px)] bg-radial from-slate-900 via-slate-950 to-black flex justify-center items-center p-6">
     <div class="w-full max-w-3xl bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 flex flex-col gap-6">
         
-        <!-- Step Progress Bar Indicator -->
         <div class="flex items-center justify-between border-b border-slate-800/80 pb-6">
             <div class="flex items-center gap-2">
                 <div class="h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300
@@ -211,7 +195,6 @@
             </div>
         </div>
 
-        <!-- SCREEN 1: SELECT DEVICE -->
         {#if currentScreen === 'select'}
             <div class="flex flex-col gap-6">
                 <div class="text-center flex flex-col items-center gap-2">
@@ -263,7 +246,6 @@
             </div>
         {/if}
 
-        <!-- SCREEN 2: CONFIGURE SETTINGS -->
         {#if currentScreen === 'configure' && selectedSubcommand}
             <div class="flex flex-col gap-6">
                 <div>
@@ -271,9 +253,7 @@
                     <p class="text-slate-400 text-xs font-mono mt-1">Configure options for `{selectedSubcommand.command}`</p>
                 </div>
 
-                <!-- Settings Forms Grid -->
                 <div class="flex flex-col gap-4 overflow-y-auto max-h-[380px] pr-2">
-                    <!-- Standard options first -->
                     {#each selectedSubcommand.arguments.filter(a => !a.advanced) as arg}
                         <div class="flex flex-col gap-1.5 p-1">
                             <label class="text-sm font-semibold text-slate-300" for={arg.flag}>{arg.label}</label>
@@ -299,7 +279,6 @@
                         </div>
                     {/each}
 
-                    <!-- Advanced Options Expander -->
                     {#if selectedSubcommand.arguments.some(a => a.advanced)}
                         <div class="border-t border-slate-800/80 pt-4 mt-2">
                             <button
@@ -343,7 +322,6 @@
                     {/if}
                 </div>
 
-                <!-- Navigation Controls -->
                 <div class="flex justify-between mt-4">
                     <button
                         class="px-6 py-3 rounded-xl border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 text-slate-300 font-semibold cursor-pointer transition-colors duration-200"
@@ -361,7 +339,6 @@
             </div>
         {/if}
 
-        <!-- SCREEN 3: INSTALLING PROGRESS -->
         {#if currentScreen === 'installing'}
             <div class="flex flex-col gap-6">
                 <div class="flex items-center gap-4">
@@ -372,7 +349,6 @@
                     </div>
                 </div>
 
-                <!-- Live Monospace Terminal -->
                 <div class="flex flex-col gap-2">
                     <span class="text-slate-400 text-xs font-mono uppercase tracking-wider">Terminal Output Log</span>
                     <div 
@@ -385,10 +361,8 @@
             </div>
         {/if}
 
-        <!-- SCREEN 4: SUCCESS RESULT -->
         {#if currentScreen === 'success'}
             <div class="flex flex-col gap-6 items-center text-center py-6">
-                <!-- Checkmark Animation -->
                 <div class="h-20 w-20 rounded-full bg-rayhunter-green/10 border-2 border-rayhunter-green flex items-center justify-center shadow-[0_0_20px_rgba(148,234,24,0.15)] animate-bounce">
                     <span class="text-rayhunter-green text-4xl font-bold">✓</span>
                 </div>
@@ -425,10 +399,8 @@
             </div>
         {/if}
 
-        <!-- SCREEN 5: FAILURE RESULT -->
         {#if currentScreen === 'failure'}
             <div class="flex flex-col gap-6 items-center text-center py-6">
-                <!-- Red Cross -->
                 <div class="h-20 w-20 rounded-full bg-red-900/10 border-2 border-red-500 flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.15)]">
                     <span class="text-red-500 text-4xl font-bold">✗</span>
                 </div>
@@ -466,7 +438,6 @@
 </div>
 
 <style>
-    /* Custom scrollbar for web view */
     .scrollbar-thin::-webkit-scrollbar {
         width: 6px;
     }

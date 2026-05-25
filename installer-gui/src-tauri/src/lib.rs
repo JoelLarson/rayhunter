@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 
+use clap::CommandFactory;
 use tauri::Emitter;
 
 mod introspect;
@@ -23,8 +24,6 @@ async fn run_installer(app_handle: tauri::AppHandle, args: Vec<String>) -> anyho
 
 #[tauri::command]
 async fn install_rayhunter(app_handle: tauri::AppHandle, args: Vec<String>) -> Result<(), String> {
-    // the return value of tauri commands needs to be serializable by serde which we accomplish
-    // here by converting anyhow::Error to a string
     run_installer(app_handle, args)
         .await
         .map_err(|error| format!("{error:?}"))
