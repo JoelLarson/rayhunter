@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { invoke } from '@tauri-apps/api/core';
+    import { invoke as tauriInvoke } from '@tauri-apps/api/core';
     import { listen } from '@tauri-apps/api/event';
     import { openUrl } from '@tauri-apps/plugin-opener';
     import type { PageProps } from './$types';
@@ -33,7 +33,7 @@
         hasAttemptedDetection = true;
         deviceDisconnected = false;
         try {
-            const detected: DetectedDevice[] = await invoke('autodetect_device');
+            const detected: DetectedDevice[] = await tauriInvoke('autodetect_device');
             detectedDevices = detected || [];
             if (selectedDeviceId === '' && detectedDevices.length > 0) {
                 selectDevice(detectedDevices[0]);
@@ -73,7 +73,7 @@
         const interval = setInterval(async () => {
             if (isDetecting) return;
             try {
-                const detected: DetectedDevice[] = await invoke('autodetect_device');
+                const detected: DetectedDevice[] = await tauriInvoke('autodetect_device');
                 const updated = detected || [];
                 detectedDevices = updated;
                 if (updated.length > 0) deviceDisconnected = false;
@@ -164,7 +164,7 @@
         }
 
         try {
-            await invoke('install_rayhunter', { args: argsVec });
+            await tauriInvoke('install_rayhunter', { args: argsVec });
             currentScreen = 'success';
         } catch (error) {
             installerError = typeof error === 'string' ? error : JSON.stringify(error);
@@ -176,22 +176,21 @@
         navigator.clipboard.writeText(installerOutput);
     }
 
-    async function openDashboard() {
-        if (!selectedDevice?.admin_ip) {
-            await invoke('adb_forward_dashboard');
-            await openUrl('http://localhost:8080');
-        } else {
-            const customIp = argsValues['--admin-ip'];
-            const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : selectedDevice.admin_ip;
-            await openUrl(`http://${ip}:8080`);
-        }
+    function dashboardUrl(): string {
+        if (!selectedDevice || !selectedDevice.admin_ip) return 'http://127.0.0.1:8080';
+        const customIp = argsValues['--admin-ip'];
+        const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : selectedDevice.admin_ip;
+        return `http://${ip}:8080`;
     }
 
-    const dashboardUrl = $derived(
-        selectedDevice?.admin_ip
-            ? `http://${argsValues['--admin-ip'] || selectedDevice.admin_ip}:8080`
-            : 'http://localhost:8080'
-    );
+    async function openDashboard() {
+        if (!selectedDevice || !selectedDevice.admin_ip) {
+            await tauriInvoke('adb_forward_dashboard');
+            await openUrl('http://127.0.0.1:8080');
+        } else {
+            await openUrl(dashboardUrl());
+        }
+    }
 </script>
 
 <div class="p-4 xl:px-8 bg-slate-900 border-b border-slate-800 flex flex-row justify-between items-center shadow-lg">
@@ -576,7 +575,7 @@
                     <p class="text-slate-400">
                         The web dashboard runs directly on the device. Connect your browser to the device to view cellular network alerts.
                     </p>
-                    <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {dashboardUrl}</span>
+                    <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {dashboardUrl()}</span>
                 </div>
 
                 <div class="flex flex-col gap-3 w-full mt-4">

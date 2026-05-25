@@ -145,10 +145,16 @@ async fn autodetect_device() -> Vec<DetectedDevice> {
 
 #[tauri::command]
 async fn adb_forward_dashboard() -> Result<(), String> {
-    std::process::Command::new("adb")
+    let output = std::process::Command::new("adb")
         .args(["forward", "tcp:8080", "tcp:8080"])
         .output()
-        .map_err(|e| format!("Failed to run adb forward: {e}"))?;
+        .map_err(|e| format!("Failed to run adb: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "adb forward failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
     Ok(())
 }
 
