@@ -5,3 +5,9 @@
     --color-rayhunter-dark-blue: #3f3da0;
     --color-rayhunter-green: #94ea18;
 }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0f172a; /* Slate 900 background by default */
+    color: #f8fafc; /* Slate 50 text by default */
+}
