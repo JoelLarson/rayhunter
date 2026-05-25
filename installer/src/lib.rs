@@ -274,7 +274,7 @@ struct Serial {
 }
 
 async fn run(args: Args) -> Result<(), Error> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("off")).init();
+    let _ = env_logger::Builder::from_env(Env::default().default_filter_or("off")).try_init();
 
     match args.command {
         Command::Tmobile(args) => tmobile::install(args).await.context("Failed to install rayhunter on the Tmobile TMOHS1. Make sure your computer is connected to the hotspot using USB tethering or WiFi.")?,
