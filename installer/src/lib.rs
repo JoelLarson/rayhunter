@@ -32,7 +32,7 @@ static RAYHUNTER_DAEMON_INIT: &str = include_str!("../../dist/scripts/rayhunter_
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
-struct Args {
+pub struct Args {
     #[command(subcommand)]
     command: Command,
 }
