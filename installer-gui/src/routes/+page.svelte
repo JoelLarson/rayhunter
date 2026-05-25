@@ -2,6 +2,7 @@
     import { invoke as tauriInvoke } from '@tauri-apps/api/core';
     import { listen } from '@tauri-apps/api/event';
     import { openUrl } from '@tauri-apps/plugin-opener';
+    import { getCurrentWindow } from '@tauri-apps/api/window';
     import type { PageProps } from './$types';
 
     let { data }: PageProps = $props();
@@ -587,7 +588,7 @@
                     </button>
                     <button
                         class="w-full py-3 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-300 font-semibold transition-colors duration-200 cursor-pointer"
-                        onclick={goBack}
+                        onclick={() => getCurrentWindow().close()}
                     >
                         Finish & Close
                     </button>
