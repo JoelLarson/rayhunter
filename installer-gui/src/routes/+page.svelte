@@ -1,18 +1,9 @@
 <script lang="ts">
-    import { invoke as tauriInvoke } from '@tauri-apps/api/core';
-    import { listen } from '@tauri-apps/api/event';
-    import { openUrl } from '@tauri-apps/plugin-opener';
-    import { getCurrentWindow } from '@tauri-apps/api/window';
+    import type { DetectedDevice } from '$lib/tauri';
+    import { autodetectDevice, installRayhunter, listen, openUrl, getCurrentWindow } from '$lib/tauri';
     import type { PageProps } from './$types';
 
     let { data }: PageProps = $props();
-
-    interface DetectedDevice {
-        id: string;
-        subcommand: string;
-        display_name: string;
-        admin_ip?: string;
-    }
 
     let currentScreen = $state<'select' | 'configure' | 'installing' | 'success' | 'failure'>('select');
     let selectedSubcommandIndex = $state<number>(-1);
@@ -34,7 +25,7 @@
         hasAttemptedDetection = true;
         deviceDisconnected = false;
         try {
-            const detected: DetectedDevice[] = await tauriInvoke('autodetect_device');
+            const detected = await autodetectDevice();
             detectedDevices = detected || [];
             if (selectedDeviceId === '' && detectedDevices.length > 0) {
                 selectDevice(detectedDevices[0]);
@@ -74,7 +65,7 @@
         const interval = setInterval(async () => {
             if (isDetecting) return;
             try {
-                const detected: DetectedDevice[] = await tauriInvoke('autodetect_device');
+                const detected = await autodetectDevice();
                 const updated = detected || [];
                 detectedDevices = updated;
                 if (updated.length > 0) deviceDisconnected = false;
@@ -165,7 +156,7 @@
         }
 
         try {
-            await tauriInvoke('install_rayhunter', { args: argsVec });
+            await installRayhunter(argsVec);
             currentScreen = 'success';
         } catch (error) {
             installerError = typeof error === 'string' ? error : JSON.stringify(error);
