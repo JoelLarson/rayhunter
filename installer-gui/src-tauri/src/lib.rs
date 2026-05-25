@@ -143,6 +143,15 @@ async fn autodetect_device() -> Vec<DetectedDevice> {
     detected
 }
 
+#[tauri::command]
+async fn adb_forward_dashboard() -> Result<(), String> {
+    std::process::Command::new("adb")
+        .args(["forward", "tcp:8080", "tcp:8080"])
+        .output()
+        .map_err(|e| format!("Failed to run adb forward: {e}"))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -150,7 +159,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             install_rayhunter,
             rayhunter_options,
-            autodetect_device
+            autodetect_device,
+            adb_forward_dashboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

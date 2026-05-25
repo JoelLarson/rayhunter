@@ -94,6 +94,10 @@
         selectedSubcommandIndex >= 0 ? data.subcommands[selectedSubcommandIndex] : null
     );
 
+    const selectedDevice = $derived(
+        detectedDevices.find(d => d.id === selectedDeviceId) ?? null
+    );
+
     function selectDevice(dev: DetectedDevice) {
         selectedDeviceId = dev.id;
         const index = data.subcommands.findIndex(s => s.command === dev.subcommand);
@@ -173,10 +177,21 @@
     }
 
     async function openDashboard() {
-        const customIp = argsValues['--admin-ip'];
-        const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : '192.168.0.1';
-        await openUrl(`http://${ip}:8080`);
+        if (!selectedDevice?.admin_ip) {
+            await invoke('adb_forward_dashboard');
+            await openUrl('http://localhost:8080');
+        } else {
+            const customIp = argsValues['--admin-ip'];
+            const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : selectedDevice.admin_ip;
+            await openUrl(`http://${ip}:8080`);
+        }
     }
+
+    const dashboardUrl = $derived(
+        selectedDevice?.admin_ip
+            ? `http://${argsValues['--admin-ip'] || selectedDevice.admin_ip}:8080`
+            : 'http://localhost:8080'
+    );
 </script>
 
 <div class="p-4 xl:px-8 bg-slate-900 border-b border-slate-800 flex flex-row justify-between items-center shadow-lg">
@@ -561,7 +576,7 @@
                     <p class="text-slate-400">
                         The web dashboard runs directly on the device. Connect your browser to the device to view cellular network alerts.
                     </p>
-                    <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: http://{(argsValues['--admin-ip'] as string) || '192.168.0.1'}:8080</span>
+                    <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {dashboardUrl}</span>
                 </div>
 
                 <div class="flex flex-col gap-3 w-full mt-4">
