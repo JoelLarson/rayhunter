@@ -14,6 +14,31 @@
     let installerError = $state<string>('');
     let logContainer = $state<HTMLDivElement | null>(null);
 
+    let detectedDeviceCommand = $state<string | null>(null);
+    let isDetecting = $state<boolean>(false);
+    let hasAttemptedDetection = $state<boolean>(false);
+
+    async function detectDevice() {
+        isDetecting = true;
+        hasAttemptedDetection = true;
+        try {
+            const detected: string | null = await invoke('autodetect_device');
+            if (detected) {
+                detectedDeviceCommand = detected;
+                const idx = data.subcommands.findIndex(s => s.command === detected);
+                if (idx >= 0) {
+                    selectDevice(idx);
+                }
+            } else {
+                detectedDeviceCommand = null;
+            }
+        } catch (e) {
+            detectedDeviceCommand = null;
+        } finally {
+            isDetecting = false;
+        }
+    }
+
     listen<string>('installer-output', (event) => {
         installerOutput += event.payload;
     });
@@ -21,6 +46,12 @@
     $effect(() => {
         if (installerOutput && logContainer) {
             logContainer.scrollTop = logContainer.scrollHeight;
+        }
+    });
+
+    $effect(() => {
+        if (currentScreen === 'select' && !hasAttemptedDetection) {
+            detectDevice();
         }
     });
 
@@ -208,6 +239,29 @@
                 <div class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-4 flex gap-3 text-slate-300 text-sm">
                     <span class="text-rayhunter-green font-bold">ℹ</span>
                     <p>Ensure your device is connected to your computer via USB or Wi-Fi, powered on, and reachable before proceeding.</p>
+                </div>
+
+                <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
+                    <div class="flex items-center gap-3">
+                        {#if isDetecting}
+                            <div class="h-5 w-5 border-2 border-slate-700 border-t-rayhunter-blue rounded-full animate-spin"></div>
+                            <span class="text-slate-300 font-medium">Scanning for connected devices...</span>
+                        {:else if detectedDeviceCommand}
+                            <span class="text-rayhunter-green font-bold">✓</span>
+                            <span class="text-slate-300 font-medium">Connected device detected: <strong class="text-white">{selectedSubcommand?.label}</strong></span>
+                        {:else}
+                            <span class="text-slate-400 font-bold">⚠</span>
+                            <span class="text-slate-400 font-medium">No connected device detected yet.</span>
+                        {/if}
+                    </div>
+                    {#if !isDetecting}
+                        <button 
+                            class="px-3 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg text-white cursor-pointer transition-colors duration-150"
+                            onclick={detectDevice}
+                        >
+                            Scan
+                        </button>
+                    {/if}
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">

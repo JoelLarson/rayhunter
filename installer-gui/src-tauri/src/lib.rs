@@ -34,11 +34,55 @@ fn rayhunter_options() -> introspect::Command<'static> {
     introspect::Command::new(&INSTALLER_COMMAND)
 }
 
+#[tauri::command]
+async fn autodetect_device() -> Option<String> {
+    if let Ok(devices) = nusb::list_devices() {
+        for dev in devices {
+            if dev.vendor_id() == 0x05c6 && dev.product_id() == 0xf601 {
+                return Some("orbic-usb".to_string());
+            }
+            if dev.vendor_id() == 0x2C7C && dev.product_id() == 0x125 {
+                return Some("pinephone".to_string());
+            }
+        }
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(600))
+        .pool_max_idle_per_host(0)
+        .build()
+        .ok()?;
+
+    for ip in &["192.168.0.1", "192.168.8.1"] {
+        if let Ok(resp) = client.post(format!("http://{ip}/cgi-bin/qcmap_web_cgi")).send().await {
+            if resp.status().is_success() {
+                return Some("tplink".to_string());
+            }
+        }
+        if let Ok(resp) = client.post(format!("http://{ip}/cgi-bin/web_cgi")).send().await {
+            if resp.status().is_success() {
+                return Some("tplink".to_string());
+            }
+        }
+        if let Ok(resp) = client.get(format!("http://{ip}/goform/GetLoginInfo")).send().await {
+            if resp.status().is_success() {
+                return Some("orbic".to_string());
+            }
+        }
+    }
+
+    None
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![install_rayhunter, rayhunter_options])
+        .invoke_handler(tauri::generate_handler![
+            install_rayhunter,
+            rayhunter_options,
+            autodetect_device
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
