@@ -6,32 +6,45 @@
 
     let { data }: PageProps = $props();
 
+    interface DetectedDevice {
+        id: string;
+        subcommand: string;
+        display_name: string;
+        admin_ip?: string;
+    }
+
     let currentScreen = $state<'select' | 'configure' | 'installing' | 'success' | 'failure'>('select');
     let selectedSubcommandIndex = $state<number>(-1);
+    let selectedDeviceId = $state<string>('');
     let showAdvanced = $state<boolean>(false);
     let argsValues = $state<Record<string, any>>({});
     let installerOutput = $state<string>('');
     let installerError = $state<string>('');
     let logContainer = $state<HTMLDivElement | null>(null);
 
-    let detectedDeviceCommands = $state<string[]>([]);
+    let detectedDevices = $state<DetectedDevice[]>([]);
     let isDetecting = $state<boolean>(false);
     let hasAttemptedDetection = $state<boolean>(false);
+    let showHelp = $state<boolean>(false);
 
     async function detectDevice() {
         isDetecting = true;
         hasAttemptedDetection = true;
         try {
-            const detected: string[] = await invoke('autodetect_device');
-            detectedDeviceCommands = detected || [];
-            if (selectedSubcommandIndex === -1 && detectedDeviceCommands.length > 0) {
-                const idx = data.subcommands.findIndex(s => s.command === detectedDeviceCommands[0]);
-                if (idx >= 0) {
-                    selectDevice(idx);
+            const detected: DetectedDevice[] = await invoke('autodetect_device');
+            detectedDevices = detected || [];
+            if (selectedDeviceId === '' && detectedDevices.length > 0) {
+                selectDevice(detectedDevices[0]);
+            } else if (selectedDeviceId !== '') {
+                const stillDetected = detectedDevices.some(d => d.id === selectedDeviceId);
+                if (!stillDetected) {
+                    selectedDeviceId = '';
+                    selectedSubcommandIndex = -1;
+                    argsValues = {};
                 }
             }
         } catch (e) {
-            detectedDeviceCommands = [];
+            detectedDevices = [];
         } finally {
             isDetecting = false;
         }
@@ -57,15 +70,19 @@
         selectedSubcommandIndex >= 0 ? data.subcommands[selectedSubcommandIndex] : null
     );
 
-    function selectDevice(index: number) {
+    function selectDevice(dev: DetectedDevice) {
+        selectedDeviceId = dev.id;
+        const index = data.subcommands.findIndex(s => s.command === dev.subcommand);
         selectedSubcommandIndex = index;
+        if (index === -1) return;
+
         const sub = data.subcommands[index];
         const newVals: Record<string, any> = {};
         
         for (const arg of sub.arguments) {
             if (arg.takes_values) {
                 if (arg.flag === '--admin-ip') {
-                    newVals[arg.flag] = '192.168.0.1';
+                    newVals[arg.flag] = dev.admin_ip || '192.168.0.1';
                 } else {
                     newVals[arg.flag] = '';
                 }
@@ -88,6 +105,7 @@
         } else if (currentScreen === 'success' || currentScreen === 'failure') {
             currentScreen = 'select';
             selectedSubcommandIndex = -1;
+            selectedDeviceId = '';
             installerOutput = '';
             installerError = '';
         }
@@ -143,6 +161,27 @@
         <span class="text-white font-bold text-xl tracking-wide">Rayhunter Installer</span>
     </div>
     <div class="flex flex-row gap-6">
+        <button
+            class="flex flex-row items-center gap-1.5 text-slate-300 hover:text-white transition-colors duration-200 text-sm font-medium cursor-pointer bg-transparent border-none"
+            onclick={() => showHelp = !showHelp}
+        >
+            <svg
+                class="w-5 h-5 text-rayhunter-blue"
+                aria-hidden="true"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
+                />
+            </svg>
+            <span>Setup Guide & Help</span>
+        </button>
         <a
             class="flex flex-row items-center gap-1.5 text-slate-300 hover:text-white transition-colors duration-200 text-sm font-medium"
             href="https://github.com/EFForg/rayhunter/issues"
@@ -244,10 +283,10 @@
                         {#if isDetecting}
                             <div class="h-5 w-5 border-2 border-slate-700 border-t-rayhunter-blue rounded-full animate-spin"></div>
                             <span class="text-slate-300 font-medium">Scanning for connected devices...</span>
-                        {:else if detectedDeviceCommands.length > 0}
+                        {:else if detectedDevices.length > 0}
                             <span class="text-rayhunter-green font-bold">✓</span>
                             <span class="text-slate-300 font-medium">
-                                Detected: <strong class="text-white">{detectedDeviceCommands.map(cmd => data.subcommands.find(s => s.command === cmd)?.label).filter(Boolean).join(', ')}</strong>
+                                Detected <strong class="text-white">{detectedDevices.length}</strong> device{detectedDevices.length === 1 ? '' : 's'} connected.
                             </span>
                         {:else}
                             <span class="text-slate-400 font-bold">⚠</span>
@@ -264,40 +303,66 @@
                     {/if}
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
-                    {#each data.subcommands as subcommand, index (subcommand.command)}
-                        <button
-                            class="text-left p-4 rounded-xl border transition-all duration-200 flex flex-col gap-1 cursor-pointer bg-slate-800/40
-                                {selectedSubcommandIndex === index 
-                                    ? 'border-rayhunter-blue bg-rayhunter-blue/5 shadow-[0_0_15px_rgba(78,78,177,0.1)]' 
-                                    : detectedDeviceCommands.includes(subcommand.command)
-                                    ? 'border-rayhunter-green/40 hover:border-rayhunter-green bg-slate-800/20 shadow-[0_0_10px_rgba(148,234,24,0.05)]'
-                                    : 'border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'}"
-                            onclick={() => selectDevice(index)}
+                {#if detectedDevices.length > 0}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+                        {#each detectedDevices as dev (dev.id)}
+                            <button
+                                class="text-left p-4 rounded-xl border transition-all duration-200 flex flex-col gap-1 cursor-pointer bg-slate-800/40
+                                    {selectedDeviceId === dev.id 
+                                        ? 'border-rayhunter-blue bg-rayhunter-blue/5 shadow-[0_0_15px_rgba(78,78,177,0.1)]' 
+                                        : 'border-rayhunter-green/40 hover:border-rayhunter-green/80 bg-slate-800/20 shadow-[0_0_10px_rgba(148,234,24,0.03)]'}"
+                                onclick={() => selectDevice(dev)}
+                            >
+                                <span class="font-bold text-white text-base flex justify-between items-center w-full">
+                                    {dev.display_name}
+                                    <div class="flex gap-1.5 items-center">
+                                        <span class="text-rayhunter-green text-[10px] font-bold bg-rayhunter-green/10 px-1.5 py-0.5 rounded border border-rayhunter-green/20 flex items-center gap-1">
+                                            <span class="h-1.5 w-1.5 bg-rayhunter-green rounded-full animate-pulse"></span>
+                                            Detected
+                                        </span>
+                                        {#if selectedDeviceId === dev.id}
+                                            <span class="text-rayhunter-blue text-[10px] font-bold bg-rayhunter-blue/15 px-1.5 py-0.5 rounded border border-rayhunter-blue/30 flex items-center gap-1">
+                                                ✓ Selected
+                                            </span>
+                                        {/if}
+                                    </div>
+                                </span>
+                                <span class="text-slate-400 text-xs tracking-wider uppercase font-mono">
+                                    Installer: {data.subcommands.find(s => s.command === dev.subcommand)?.label || dev.subcommand}
+                                </span>
+                            </button>
+                        {/each}
+                    </div>
+                {:else}
+                    <div class="flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-400 gap-3 bg-slate-950/20">
+                        <span class="text-3xl">🔌</span>
+                        <p class="text-sm font-medium">No connected devices detected yet.</p>
+                        <p class="text-xs text-slate-500 max-w-xs">Please plug in your device via USB or connect to its Wi-Fi network, then click "Scan".</p>
+                        <button 
+                            class="mt-2 px-4 py-2 text-xs font-bold bg-rayhunter-blue hover:bg-rayhunter-dark-blue text-white rounded-lg transition-colors cursor-pointer"
+                            onclick={detectDevice}
+                            disabled={isDetecting}
                         >
-                            <span class="font-bold text-white text-base flex justify-between items-center w-full">
-                                {subcommand.label}
-                                <div class="flex gap-1">
-                                    {#if detectedDeviceCommands.includes(subcommand.command)}
-                                        <span class="text-rayhunter-green text-[10px] font-bold bg-rayhunter-green/10 px-1.5 py-0.5 rounded border border-rayhunter-green/20">Detected</span>
-                                    {/if}
-                                    {#if selectedSubcommandIndex === index}
-                                        <span class="text-rayhunter-blue text-[10px] font-bold bg-rayhunter-blue/15 px-1.5 py-0.5 rounded border border-rayhunter-blue/30">Selected</span>
-                                    {/if}
-                                </div>
-                            </span>
-                            <span class="text-slate-400 text-xs tracking-wider uppercase font-mono">CLI Command: {subcommand.command}</span>
+                            {isDetecting ? 'Scanning...' : 'Scan for Devices'}
                         </button>
-                    {/each}
-                </div>
+                    </div>
+                {/if}
 
-                <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 text-sm flex flex-col gap-2">
-                    <span class="font-bold text-slate-300">Device Hardware & Setup Guides:</span>
+                <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 text-sm flex flex-col gap-3">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-300">Device Hardware & Setup:</span>
+                        <button
+                            class="text-xs font-bold text-rayhunter-blue hover:underline cursor-pointer bg-transparent border-none p-0 flex items-center gap-1"
+                            onclick={() => showHelp = true}
+                        >
+                            View Step-by-Step Setup Guide ➔
+                        </button>
+                    </div>
                     <div class="grid grid-cols-2 gap-2 text-xs">
-                        <a href="https://efforg.github.io/rayhunter/orbic.html" target="_blank" class="text-rayhunter-blue hover:underline">Orbic Setup Guide</a>
-                        <a href="https://efforg.github.io/rayhunter/tplink-m7350.html" target="_blank" class="text-rayhunter-blue hover:underline">TP-Link Setup Guide</a>
-                        <a href="https://efforg.github.io/rayhunter/moxee.html" target="_blank" class="text-rayhunter-blue hover:underline">Moxee Setup Guide</a>
-                        <a href="https://efforg.github.io/rayhunter/wingtech.html" target="_blank" class="text-rayhunter-blue hover:underline">Wingtech Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/orbic.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">Orbic Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/tplink-m7350.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">TP-Link Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/moxee.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">Moxee Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/wingtech.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">Wingtech Setup Guide</a>
                     </div>
                 </div>
 
@@ -505,8 +570,121 @@
             </div>
         {/if}
 
+        </div>
     </div>
-</div>
+
+{#if showHelp}
+    <!-- Backdrop -->
+    <div 
+        class="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 transition-opacity duration-300"
+        onclick={() => showHelp = false}
+        aria-hidden="true"
+    ></div>
+
+    <!-- Drawer Content -->
+    <div 
+        class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-slate-950 border-l border-slate-800 z-50 shadow-2xl p-6 overflow-y-auto flex flex-col gap-6 transition-transform duration-300"
+    >
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <span>❓</span> Setup & Help Instructions
+            </h3>
+            <button 
+                class="text-slate-400 hover:text-white cursor-pointer text-sm font-semibold p-1.5 bg-slate-900 hover:bg-slate-800 rounded border border-slate-700 transition-colors"
+                onclick={() => showHelp = false}
+            >
+                ✕ Close
+            </button>
+        </div>
+
+        <div class="flex flex-col gap-4 text-sm text-slate-300 leading-relaxed">
+            <p class="text-xs text-slate-400">Select your device below to view its specific setup steps:</p>
+            
+            <div class="flex flex-col gap-3">
+                <details class="group bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+                    <summary class="font-semibold text-white cursor-pointer list-none flex justify-between items-center">
+                        <span>Orbic RC400L (USB & Wi-Fi)</span>
+                        <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 text-xs flex flex-col gap-2 pl-2 border-l-2 border-rayhunter-blue text-slate-400">
+                        <p><strong class="text-slate-200">USB Installer:</strong> Recommended if you need ADB root access. Connect the Orbic via USB, power it on, and run the scan. Standard driver setup is required.</p>
+                        <p><strong class="text-slate-200">Network Installer:</strong> Recommended for most usecases. Connect to the Orbic's Wi-Fi network (default gateway `192.168.1.1` or `192.168.0.1`), configure username (`admin`) and your admin portal password.</p>
+                        <a href="https://efforg.github.io/rayhunter/orbic.html" target="_blank" class="text-rayhunter-blue hover:underline mt-1 block font-semibold">Full Orbic Setup Guide ➔</a>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+                    <summary class="font-semibold text-white cursor-pointer list-none flex justify-between items-center">
+                        <span>Moxee Hotspot</span>
+                        <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 text-xs flex flex-col gap-2 pl-2 border-l-2 border-rayhunter-blue text-slate-400">
+                        <p>1. Connect your PC to the Moxee Hotspot's Wi-Fi.</p>
+                        <p>2. The admin interface is typically reached at `http://192.168.1.1` or `http://192.168.8.1`.</p>
+                        <p>3. Enter your web portal password in the configuration step to authenticate and install.</p>
+                        <a href="https://efforg.github.io/rayhunter/moxee.html" target="_blank" class="text-rayhunter-blue hover:underline mt-1 block font-semibold">Full Moxee Setup Guide ➔</a>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+                    <summary class="font-semibold text-white cursor-pointer list-none flex justify-between items-center">
+                        <span>TP-Link M7350</span>
+                        <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 text-xs flex flex-col gap-2 pl-2 border-l-2 border-rayhunter-blue text-slate-400">
+                        <p>1. Insert a formatted Micro SD card into the TP-Link hotspot (required for storage).</p>
+                        <p>2. Connect to the TP-Link Wi-Fi network.</p>
+                        <p>3. Run the installer. By default it communicates with the admin gateway at `http://192.168.0.1`.</p>
+                        <a href="https://efforg.github.io/rayhunter/tplink-m7350.html" target="_blank" class="text-rayhunter-blue hover:underline mt-1 block font-semibold">Full TP-Link Setup Guide ➔</a>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+                    <summary class="font-semibold text-white cursor-pointer list-none flex justify-between items-center">
+                        <span>Wingtech CT2MHS01</span>
+                        <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 text-xs flex flex-col gap-2 pl-2 border-l-2 border-rayhunter-blue text-slate-400">
+                        <p>1. Connect your PC to the Wingtech hotspot via USB or Wi-Fi.</p>
+                        <p>2. Configure the web admin password in the settings form to authorize root telnet access and deploy the daemon.</p>
+                        <a href="https://efforg.github.io/rayhunter/wingtech.html" target="_blank" class="text-rayhunter-blue hover:underline mt-1 block font-semibold">Full Wingtech Setup Guide ➔</a>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+                    <summary class="font-semibold text-white cursor-pointer list-none flex justify-between items-center">
+                        <span>PinePhone Modem</span>
+                        <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 text-xs flex flex-col gap-2 pl-2 border-l-2 border-rayhunter-blue text-slate-400">
+                        <p>1. Ensure your PinePhone is booted and the Quectel modem is enabled.</p>
+                        <p>2. Connect the phone via USB. The installer will claim the USB interface, enable ADB root access, and deploy the Rayhunter daemon.</p>
+                    </div>
+                </details>
+
+                <details class="group bg-slate-900/60 border border-slate-800/80 rounded-xl p-3">
+                    <summary class="font-semibold text-white cursor-pointer list-none flex justify-between items-center">
+                        <span>T-Mobile TMOHS1 & Uz801</span>
+                        <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="mt-3 text-xs flex flex-col gap-2 pl-2 border-l-2 border-rayhunter-blue text-slate-400">
+                        <p><strong class="text-slate-200">T-Mobile TMOHS1:</strong> Connect via Wi-Fi/USB and supply the web portal admin password.</p>
+                        <p><strong class="text-slate-200">Uz801:</strong> Connect via USB. The installer will activate USB debug mode automatically and setup Rayhunter.</p>
+                    </div>
+                </details>
+            </div>
+
+            <div class="mt-6 border-t border-slate-800 pt-4 flex flex-col gap-2">
+                <span class="font-bold text-white text-xs uppercase tracking-wider">Troubleshooting Tips:</span>
+                <ul class="list-disc pl-4 text-xs text-slate-400 flex flex-col gap-1.5">
+                    <li>If a USB device is not detected, ensure it is powered on and check your USB cable/ports.</li>
+                    <li>If a Wi-Fi device is not detected, confirm you are connected to the hotspot's SSID.</li>
+                    <li>Ensure no other software (such as a local ADB server or debugger) is actively using the USB interface.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <style>
     .scrollbar-thin::-webkit-scrollbar {
