@@ -35,14 +35,16 @@ fn rayhunter_options() -> introspect::Command<'static> {
 }
 
 #[tauri::command]
-async fn autodetect_device() -> Option<String> {
+async fn autodetect_device() -> Vec<String> {
+    let mut detected = Vec::new();
+
     if let Ok(devices) = nusb::list_devices() {
         for dev in devices {
             if dev.vendor_id() == 0x05c6 && dev.product_id() == 0xf601 {
-                return Some("orbic-usb".to_string());
+                detected.push("orbic-usb".to_string());
             }
             if dev.vendor_id() == 0x2C7C && dev.product_id() == 0x125 {
-                return Some("pinephone".to_string());
+                detected.push("pinephone".to_string());
             }
         }
     }
@@ -50,28 +52,39 @@ async fn autodetect_device() -> Option<String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(600))
         .pool_max_idle_per_host(0)
-        .build()
-        .ok()?;
+        .build();
 
-    for ip in &["192.168.0.1", "192.168.8.1"] {
-        if let Ok(resp) = client.post(format!("http://{ip}/cgi-bin/qcmap_web_cgi")).send().await {
-            if resp.status().is_success() {
-                return Some("tplink".to_string());
+    if let Ok(client) = client {
+        for ip in &["192.168.0.1", "192.168.8.1"] {
+            let mut is_tplink = false;
+            if let Ok(resp) = client.post(format!("http://{ip}/cgi-bin/qcmap_web_cgi")).send().await {
+                if resp.status().is_success() {
+                    is_tplink = true;
+                }
             }
-        }
-        if let Ok(resp) = client.post(format!("http://{ip}/cgi-bin/web_cgi")).send().await {
-            if resp.status().is_success() {
-                return Some("tplink".to_string());
+            if !is_tplink {
+                if let Ok(resp) = client.post(format!("http://{ip}/cgi-bin/web_cgi")).send().await {
+                    if resp.status().is_success() {
+                        is_tplink = true;
+                    }
+                }
             }
-        }
-        if let Ok(resp) = client.get(format!("http://{ip}/goform/GetLoginInfo")).send().await {
-            if resp.status().is_success() {
-                return Some("orbic".to_string());
+            if is_tplink {
+                detected.push("tplink".to_string());
+            }
+            if let Ok(resp) = client.get(format!("http://{ip}/goform/GetLoginInfo")).send().await {
+                if resp.status().is_success() {
+                    // Orbic and Moxee hotspots run identical firmware web backends.
+                    detected.push("orbic".to_string());
+                    detected.push("moxee".to_string());
+                }
             }
         }
     }
 
-    None
+    detected.sort_unstable();
+    detected.dedup();
+    detected
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

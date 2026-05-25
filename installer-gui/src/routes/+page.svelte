@@ -14,7 +14,7 @@
     let installerError = $state<string>('');
     let logContainer = $state<HTMLDivElement | null>(null);
 
-    let detectedDeviceCommand = $state<string | null>(null);
+    let detectedDeviceCommands = $state<string[]>([]);
     let isDetecting = $state<boolean>(false);
     let hasAttemptedDetection = $state<boolean>(false);
 
@@ -22,18 +22,16 @@
         isDetecting = true;
         hasAttemptedDetection = true;
         try {
-            const detected: string | null = await invoke('autodetect_device');
-            if (detected) {
-                detectedDeviceCommand = detected;
-                const idx = data.subcommands.findIndex(s => s.command === detected);
+            const detected: string[] = await invoke('autodetect_device');
+            detectedDeviceCommands = detected || [];
+            if (selectedSubcommandIndex === -1 && detectedDeviceCommands.length > 0) {
+                const idx = data.subcommands.findIndex(s => s.command === detectedDeviceCommands[0]);
                 if (idx >= 0) {
                     selectDevice(idx);
                 }
-            } else {
-                detectedDeviceCommand = null;
             }
         } catch (e) {
-            detectedDeviceCommand = null;
+            detectedDeviceCommands = [];
         } finally {
             isDetecting = false;
         }
@@ -246,9 +244,11 @@
                         {#if isDetecting}
                             <div class="h-5 w-5 border-2 border-slate-700 border-t-rayhunter-blue rounded-full animate-spin"></div>
                             <span class="text-slate-300 font-medium">Scanning for connected devices...</span>
-                        {:else if detectedDeviceCommand}
+                        {:else if detectedDeviceCommands.length > 0}
                             <span class="text-rayhunter-green font-bold">✓</span>
-                            <span class="text-slate-300 font-medium">Connected device detected: <strong class="text-white">{selectedSubcommand?.label}</strong></span>
+                            <span class="text-slate-300 font-medium">
+                                Detected: <strong class="text-white">{detectedDeviceCommands.map(cmd => data.subcommands.find(s => s.command === cmd)?.label).filter(Boolean).join(', ')}</strong>
+                            </span>
                         {:else}
                             <span class="text-slate-400 font-bold">⚠</span>
                             <span class="text-slate-400 font-medium">No connected device detected yet.</span>
@@ -269,22 +269,39 @@
                         <button
                             class="text-left p-4 rounded-xl border transition-all duration-200 flex flex-col gap-1 cursor-pointer bg-slate-800/40
                                 {selectedSubcommandIndex === index 
-                                    ? 'border-rayhunter-green/80 bg-rayhunter-green/5 shadow-[0_0_15px_rgba(148,234,24,0.1)]' 
+                                    ? 'border-rayhunter-blue bg-rayhunter-blue/5 shadow-[0_0_15px_rgba(78,78,177,0.1)]' 
+                                    : detectedDeviceCommands.includes(subcommand.command)
+                                    ? 'border-rayhunter-green/40 hover:border-rayhunter-green bg-slate-800/20 shadow-[0_0_10px_rgba(148,234,24,0.05)]'
                                     : 'border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'}"
                             onclick={() => selectDevice(index)}
                         >
                             <span class="font-bold text-white text-base flex justify-between items-center w-full">
                                 {subcommand.label}
-                                {#if selectedSubcommandIndex === index}
-                                    <span class="text-rayhunter-green text-xs font-bold bg-rayhunter-green/10 px-2 py-0.5 rounded">Selected</span>
-                                {/if}
+                                <div class="flex gap-1">
+                                    {#if detectedDeviceCommands.includes(subcommand.command)}
+                                        <span class="text-rayhunter-green text-[10px] font-bold bg-rayhunter-green/10 px-1.5 py-0.5 rounded border border-rayhunter-green/20">Detected</span>
+                                    {/if}
+                                    {#if selectedSubcommandIndex === index}
+                                        <span class="text-rayhunter-blue text-[10px] font-bold bg-rayhunter-blue/15 px-1.5 py-0.5 rounded border border-rayhunter-blue/30">Selected</span>
+                                    {/if}
+                                </div>
                             </span>
                             <span class="text-slate-400 text-xs tracking-wider uppercase font-mono">CLI Command: {subcommand.command}</span>
                         </button>
                     {/each}
                 </div>
 
-                <div class="flex justify-end mt-4">
+                <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 text-sm flex flex-col gap-2">
+                    <span class="font-bold text-slate-300">Device Hardware & Setup Guides:</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <a href="https://efforg.github.io/rayhunter/orbic.html" target="_blank" class="text-rayhunter-blue hover:underline">Orbic Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/tplink-m7350.html" target="_blank" class="text-rayhunter-blue hover:underline">TP-Link Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/moxee.html" target="_blank" class="text-rayhunter-blue hover:underline">Moxee Setup Guide</a>
+                        <a href="https://efforg.github.io/rayhunter/wingtech.html" target="_blank" class="text-rayhunter-blue hover:underline">Wingtech Setup Guide</a>
+                    </div>
+                </div>
+
+                <div class="flex justify-end mt-2">
                     <button
                         class="px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 flex items-center gap-2 cursor-pointer
                             {selectedSubcommandIndex >= 0 
