@@ -178,19 +178,13 @@
     }
 
     function dashboardUrl(): string {
-        if (!selectedDevice || !selectedDevice.admin_ip) return 'http://127.0.0.1:8080';
         const customIp = argsValues['--admin-ip'];
-        const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : selectedDevice.admin_ip;
+        const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : selectedDevice?.admin_ip ?? '192.168.0.1';
         return `http://${ip}:8080`;
     }
 
     async function openDashboard() {
-        if (!selectedDevice || !selectedDevice.admin_ip) {
-            await tauriInvoke('adb_forward_dashboard');
-            await openUrl('http://127.0.0.1:8080');
-        } else {
-            await openUrl(dashboardUrl());
-        }
+        await openUrl(dashboardUrl());
     }
 </script>
 
@@ -268,35 +262,33 @@
 <div class="min-h-[calc(100vh-73px)] bg-radial from-slate-900 via-slate-950 to-black flex justify-center items-center p-6">
     <div class="w-full max-w-3xl bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 flex flex-col gap-6">
         
-        <nav aria-label="Installation steps" class="border-b border-slate-800/80 pb-6">
-            <ol class="flex items-center gap-2 text-sm">
+        <nav aria-label="Installation steps" class="border-b border-slate-800/80 pb-6 flex justify-center">
+            <ol class="flex items-center gap-3 text-sm font-medium">
                 <li aria-current={currentScreen === 'select' ? 'step' : undefined}>
-                    <span class="flex items-center gap-1.5
-                        {currentScreen === 'select' ? 'text-white font-semibold' :
-                         'text-rayhunter-green'}">
+                    <span class="flex items-center gap-1.5 transition-colors
+                        {currentScreen === 'select' ? 'text-white' : 'text-rayhunter-green'}">
                         {#if currentScreen !== 'select'}
                             <span aria-hidden="true">✓</span>
                         {/if}
                         Device
                     </span>
                 </li>
-                <li aria-hidden="true" class="text-slate-700">›</li>
+                <li aria-hidden="true" class="text-slate-500">›</li>
                 <li aria-current={currentScreen === 'configure' ? 'step' : undefined}>
-                    <span class="
-                        {currentScreen === 'configure' ? 'text-white font-semibold' :
-                         currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-rayhunter-green flex items-center gap-1.5' :
-                         'text-slate-600'}">
+                    <span class="flex items-center gap-1.5 transition-colors
+                        {currentScreen === 'configure' ? 'text-white' :
+                         currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-rayhunter-green' :
+                         'text-slate-500'}">
                         {#if currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure'}
                             <span aria-hidden="true">✓</span>
                         {/if}
                         Configure
                     </span>
                 </li>
-                <li aria-hidden="true" class="text-slate-700">›</li>
+                <li aria-hidden="true" class="text-slate-500">›</li>
                 <li aria-current={currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'step' : undefined}>
-                    <span class="
-                        {currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-white font-semibold' :
-                         'text-slate-600'}">
+                    <span class="transition-colors
+                        {currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-white' : 'text-slate-500'}">
                         Install
                     </span>
                 </li>
@@ -570,21 +562,25 @@
                     </p>
                 </div>
 
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col gap-2 text-left w-full text-sm">
-                    <span class="font-bold text-slate-300">Accessing Rayhunter</span>
-                    <p class="text-slate-400">
-                        The web dashboard runs directly on the device. Connect your browser to the device to view cellular network alerts.
-                    </p>
-                    <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {dashboardUrl()}</span>
-                </div>
+                {#if selectedDevice?.admin_ip}
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col gap-2 text-left w-full text-sm">
+                        <span class="font-bold text-slate-300">Accessing Rayhunter</span>
+                        <p class="text-slate-400">
+                            The web dashboard runs directly on the device. Connect your browser to the device to view cellular network alerts.
+                        </p>
+                        <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {dashboardUrl()}</span>
+                    </div>
+                {/if}
 
                 <div class="flex flex-col gap-3 w-full mt-4">
-                    <button
-                        class="w-full py-3 rounded-xl font-bold bg-rayhunter-green text-slate-950 hover:bg-opacity-90 shadow-lg shadow-rayhunter-green/10 transition-all duration-200 cursor-pointer"
-                        onclick={openDashboard}
-                    >
-                        Open Dashboard in Browser
-                    </button>
+                    {#if selectedDevice?.admin_ip}
+                        <button
+                            class="w-full py-3 rounded-xl font-bold bg-rayhunter-green text-slate-950 hover:bg-opacity-90 shadow-lg shadow-rayhunter-green/10 transition-all duration-200 cursor-pointer"
+                            onclick={openDashboard}
+                        >
+                            Open Dashboard in Browser
+                        </button>
+                    {/if}
                     <button
                         class="w-full py-3 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-300 font-semibold transition-colors duration-200 cursor-pointer"
                         onclick={() => getCurrentWindow().close()}
