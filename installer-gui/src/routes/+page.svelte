@@ -25,11 +25,13 @@
     let detectedDevices = $state<DetectedDevice[]>([]);
     let isDetecting = $state<boolean>(false);
     let hasAttemptedDetection = $state<boolean>(false);
+    let deviceDisconnected = $state<boolean>(false);
     let showHelp = $state<boolean>(false);
 
     async function detectDevice() {
         isDetecting = true;
         hasAttemptedDetection = true;
+        deviceDisconnected = false;
         try {
             const detected: DetectedDevice[] = await invoke('autodetect_device');
             detectedDevices = detected || [];
@@ -64,6 +66,28 @@
         if (currentScreen === 'select' && !hasAttemptedDetection) {
             detectDevice();
         }
+    });
+
+    $effect(() => {
+        if (currentScreen !== 'select') return;
+        const interval = setInterval(async () => {
+            if (isDetecting) return;
+            try {
+                const detected: DetectedDevice[] = await invoke('autodetect_device');
+                const updated = detected || [];
+                detectedDevices = updated;
+                if (updated.length > 0) deviceDisconnected = false;
+                if (selectedDeviceId !== '' && !updated.some(d => d.id === selectedDeviceId)) {
+                    selectedDeviceId = '';
+                    selectedSubcommandIndex = -1;
+                    argsValues = {};
+                    deviceDisconnected = true;
+                }
+            } catch {
+                // silent — don't clear state on transient errors
+            }
+        }, 3000);
+        return () => clearInterval(interval);
     });
 
     const selectedSubcommand = $derived(
@@ -264,121 +288,143 @@
         </div>
 
         {#if currentScreen === 'select'}
-            <div class="flex flex-col gap-6">
-                <div class="text-center flex flex-col items-center gap-2">
-                    <img src="/orca.svg" alt="Rayhunter Logo" class="h-20 w-20 transition-transform duration-300 hover:scale-105" />
-                    <h1 class="text-2xl font-bold text-white tracking-tight mt-2">Connect Your Device</h1>
-                    <p class="text-slate-400 text-sm max-w-md">
-                        Select the cellular hotspot device you wish to install the Rayhunter monitoring daemon onto.
+            <div class="flex flex-col items-center gap-8 py-2">
+
+                <!-- Logo + heading -->
+                <div class="flex flex-col items-center gap-3 text-center">
+                    <img src="/orca.svg" alt="Rayhunter" class="h-20 w-20" />
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-3xl font-bold text-white tracking-tight">Connect Your Device</h1>
+                        <p class="text-slate-400 text-sm max-w-sm">
+                            Select the cellular hotspot device you wish to install Rayhunter onto.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Warning -->
+                <div class="w-full bg-amber-950/20 border border-amber-700/30 rounded-xl p-4 flex gap-3 items-start">
+                    <svg class="w-5 h-5 text-amber-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p class="text-amber-200/80 text-sm leading-relaxed">
+                        Ensure your device is powered on and connected via USB or its Wi-Fi hotspot before scanning.
                     </p>
                 </div>
 
-                <div class="bg-indigo-950/20 border border-indigo-900/40 rounded-xl p-4 flex gap-3 text-slate-300 text-sm">
-                    <span class="text-rayhunter-green font-bold">ℹ</span>
-                    <p>Ensure your device is connected to your computer via USB or Wi-Fi, powered on, and reachable before proceeding.</p>
-                </div>
+                <!-- Device list with section header -->
+                <div class="w-full flex flex-col gap-3">
 
-                <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm">
-                    <div class="flex items-center gap-3">
-                        {#if isDetecting}
-                            <div class="h-5 w-5 border-2 border-slate-700 border-t-rayhunter-blue rounded-full animate-spin"></div>
-                            <span class="text-slate-300 font-medium">Scanning for connected devices...</span>
-                        {:else if detectedDevices.length > 0}
-                            <span class="text-rayhunter-green font-bold">✓</span>
-                            <span class="text-slate-300 font-medium">
-                                Detected <strong class="text-white">{detectedDevices.length}</strong> device{detectedDevices.length === 1 ? '' : 's'} connected.
-                            </span>
-                        {:else}
-                            <span class="text-slate-400 font-bold">⚠</span>
-                            <span class="text-slate-400 font-medium">No connected device detected yet.</span>
-                        {/if}
-                    </div>
-                    {#if !isDetecting}
-                        <button 
-                            class="px-3 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg text-white cursor-pointer transition-colors duration-150"
-                            onclick={detectDevice}
+                    <!-- Section header: status left, refresh right -->
+                    <div class="flex items-center justify-between">
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
+                            class="flex items-center gap-2"
                         >
-                            Scan
-                        </button>
-                    {/if}
-                </div>
+                            {#if isDetecting}
+                                <span class="h-4 w-4 border-2 border-slate-700 border-t-rayhunter-blue rounded-full animate-spin" aria-hidden="true"></span>
+                                <span class="text-sm text-slate-400">Scanning for devices…</span>
+                            {:else if detectedDevices.length > 0}
+                                <span class="h-2 w-2 rounded-full bg-rayhunter-green animate-pulse" aria-hidden="true"></span>
+                                <span class="text-sm text-slate-300">
+                                    <strong class="text-white">{detectedDevices.length}</strong>
+                                    {detectedDevices.length === 1 ? 'device' : 'devices'} found
+                                </span>
+                            {:else if hasAttemptedDetection}
+                                <span class="h-2 w-2 rounded-full bg-slate-600 animate-pulse" aria-hidden="true"></span>
+                                <span class="text-sm text-slate-500">No devices found</span>
+                            {:else}
+                                <span class="text-sm text-slate-500">Looking for devices…</span>
+                            {/if}
+                        </div>
 
-                {#if detectedDevices.length > 0}
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-1">
+                        <button
+                            onclick={detectDevice}
+                            disabled={isDetecting}
+                            aria-label="Scan for devices now"
+                            class="flex items-center gap-1.5 text-sm font-medium transition-colors duration-150
+                                {isDetecting
+                                    ? 'text-slate-600 cursor-not-allowed'
+                                    : 'text-slate-400 hover:text-white cursor-pointer'}"
+                        >
+                            <svg
+                                class="w-4 h-4 {isDetecting ? 'animate-spin' : ''}"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Scan Now
+                        </button>
+                    </div>
+
+                    <!-- Disconnection warning -->
+                    {#if deviceDisconnected}
+                        <div role="alert" class="bg-red-950/20 border border-red-700/30 rounded-xl p-4 flex gap-3 items-start">
+                            <svg class="w-5 h-5 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <p class="text-red-300/80 text-sm leading-relaxed">
+                                Your selected device was disconnected. Reconnect it and scan again to continue.
+                            </p>
+                        </div>
+                    {/if}
+
+                    <!-- Devices or empty state -->
+                    {#if detectedDevices.length > 0}
                         {#each detectedDevices as dev (dev.id)}
                             <button
-                                class="text-left p-4 rounded-xl border transition-all duration-200 flex flex-col gap-1 cursor-pointer bg-slate-800/40
-                                    {selectedDeviceId === dev.id 
-                                        ? 'border-rayhunter-blue bg-rayhunter-blue/5 shadow-[0_0_15px_rgba(78,78,177,0.1)]' 
-                                        : 'border-rayhunter-green/40 hover:border-rayhunter-green/80 bg-slate-800/20 shadow-[0_0_10px_rgba(148,234,24,0.03)]'}"
                                 onclick={() => selectDevice(dev)}
+                                aria-pressed={selectedDeviceId === dev.id}
+                                class="w-full text-left p-4 rounded-xl border transition-all duration-150 cursor-pointer
+                                    {selectedDeviceId === dev.id
+                                        ? 'border-rayhunter-blue bg-rayhunter-blue/5 ring-2 ring-rayhunter-blue/20'
+                                        : 'border-slate-700 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50'}"
                             >
-                                <span class="font-bold text-white text-base flex justify-between items-center w-full">
-                                    {dev.display_name}
-                                    <div class="flex gap-1.5 items-center">
-                                        <span class="text-rayhunter-green text-[10px] font-bold bg-rayhunter-green/10 px-1.5 py-0.5 rounded border border-rayhunter-green/20 flex items-center gap-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-white">{dev.display_name}</span>
+                                    <div class="flex items-center gap-2" aria-hidden="true">
+                                        <span class="text-[11px] font-semibold text-rayhunter-green bg-rayhunter-green/10 border border-rayhunter-green/20 px-2 py-0.5 rounded flex items-center gap-1">
                                             <span class="h-1.5 w-1.5 bg-rayhunter-green rounded-full animate-pulse"></span>
                                             Detected
                                         </span>
                                         {#if selectedDeviceId === dev.id}
-                                            <span class="text-rayhunter-blue text-[10px] font-bold bg-rayhunter-blue/15 px-1.5 py-0.5 rounded border border-rayhunter-blue/30 flex items-center gap-1">
+                                            <span class="text-[11px] font-semibold text-rayhunter-blue bg-rayhunter-blue/10 border border-rayhunter-blue/30 px-2 py-0.5 rounded">
                                                 ✓ Selected
                                             </span>
                                         {/if}
                                     </div>
-                                </span>
-                                <span class="text-slate-400 text-xs tracking-wider uppercase font-mono">
-                                    Installer: {data.subcommands.find(s => s.command === dev.subcommand)?.label || dev.subcommand}
-                                </span>
+                                </div>
                             </button>
                         {/each}
-                    </div>
-                {:else}
-                    <div class="flex flex-col items-center justify-center border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-400 gap-3 bg-slate-950/20">
-                        <span class="text-3xl">🔌</span>
-                        <p class="text-sm font-medium">No connected devices detected yet.</p>
-                        <p class="text-xs text-slate-500 max-w-xs">Please plug in your device via USB or connect to its Wi-Fi network, then click "Scan".</p>
-                        <button 
-                            class="mt-2 px-4 py-2 text-xs font-bold bg-rayhunter-blue hover:bg-rayhunter-dark-blue text-white rounded-lg transition-colors cursor-pointer"
-                            onclick={detectDevice}
-                            disabled={isDetecting}
-                        >
-                            {isDetecting ? 'Scanning...' : 'Scan for Devices'}
-                        </button>
-                    </div>
-                {/if}
+                    {:else if hasAttemptedDetection}
+                        <div class="border border-dashed border-slate-800 rounded-xl p-8 text-center flex flex-col gap-1">
+                            <p class="text-slate-500 text-sm">No compatible devices detected.</p>
+                            <p class="text-slate-600 text-xs">Connect your device via USB or join its Wi-Fi network.</p>
+                        </div>
+                    {/if}
 
-                <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 text-sm flex flex-col gap-3">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-slate-300">Device Hardware & Setup:</span>
-                        <button
-                            class="text-xs font-bold text-rayhunter-blue hover:underline cursor-pointer bg-transparent border-none p-0 flex items-center gap-1"
-                            onclick={() => showHelp = true}
-                        >
-                            View Step-by-Step Setup Guide ➔
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                        <a href="https://efforg.github.io/rayhunter/orbic.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">Orbic Setup Guide</a>
-                        <a href="https://efforg.github.io/rayhunter/tplink-m7350.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">TP-Link Setup Guide</a>
-                        <a href="https://efforg.github.io/rayhunter/moxee.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">Moxee Setup Guide</a>
-                        <a href="https://efforg.github.io/rayhunter/wingtech.html" target="_blank" class="text-slate-400 hover:text-white transition-colors">Wingtech Setup Guide</a>
-                    </div>
                 </div>
 
-                <div class="flex justify-end mt-2">
+                <!-- Next -->
+                <div class="w-full flex justify-end pt-2">
                     <button
-                        class="px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-200 flex items-center gap-2 cursor-pointer
-                            {selectedSubcommandIndex >= 0 
-                                ? 'bg-rayhunter-blue hover:bg-rayhunter-dark-blue text-white hover:scale-[1.02]' 
-                                : 'bg-slate-800 text-slate-500 cursor-not-allowed'}"
-                        disabled={selectedSubcommandIndex < 0}
                         onclick={goNext}
+                        disabled={selectedSubcommandIndex < 0}
+                        class="px-8 py-3 rounded-xl font-semibold transition-all duration-150 flex items-center gap-2
+                            {selectedSubcommandIndex >= 0
+                                ? 'bg-rayhunter-blue hover:bg-rayhunter-dark-blue text-white cursor-pointer hover:scale-[1.02]'
+                                : 'bg-slate-800 text-slate-600 cursor-not-allowed'}"
                     >
-                        <span>Next</span>
-                        <span>➔</span>
+                        Next
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
                     </button>
                 </div>
+
             </div>
         {/if}
 
