@@ -268,39 +268,40 @@
 <div class="min-h-[calc(100vh-73px)] bg-radial from-slate-900 via-slate-950 to-black flex justify-center items-center p-6">
     <div class="w-full max-w-3xl bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 flex flex-col gap-6">
         
-        <div class="flex items-center justify-between border-b border-slate-800/80 pb-6">
-            <div class="flex items-center gap-2">
-                <div class="h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300
-                    {currentScreen === 'select' ? 'bg-rayhunter-blue text-white ring-4 ring-rayhunter-blue/20' : 'bg-rayhunter-green text-slate-950'}">
-                    {currentScreen !== 'select' ? '✓' : '1'}
-                </div>
-                <span class="text-sm font-semibold {currentScreen === 'select' ? 'text-white' : 'text-slate-400'}">Device</span>
-            </div>
-            <div class="flex-1 h-0.5 mx-4 bg-slate-800">
-                <div class="h-full bg-rayhunter-green transition-all duration-500" 
-                     style="width: {currentScreen === 'select' ? '0%' : currentScreen === 'configure' ? '50%' : '100%'}"></div>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300
-                    {currentScreen === 'configure' ? 'bg-rayhunter-blue text-white ring-4 ring-rayhunter-blue/20' : 
-                     (currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure') ? 'bg-rayhunter-green text-slate-950' : 'bg-slate-800 text-slate-500'}">
-                    {currentScreen === 'success' || currentScreen === 'failure' ? '✓' : '2'}
-                </div>
-                <span class="text-sm font-semibold {currentScreen === 'configure' ? 'text-white' : 'text-slate-400'}">Configure</span>
-            </div>
-            <div class="flex-1 h-0.5 mx-4 bg-slate-800">
-                <div class="h-full bg-rayhunter-green transition-all duration-500" 
-                     style="width: {currentScreen === 'success' || currentScreen === 'failure' ? '100%' : '0%'}"></div>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md transition-all duration-300
-                    {currentScreen === 'installing' ? 'bg-rayhunter-blue text-white ring-4 ring-rayhunter-blue/20' : 
-                     currentScreen === 'success' ? 'bg-rayhunter-green text-slate-950' : 'bg-slate-800 text-slate-500'}">
-                    3
-                </div>
-                <span class="text-sm font-semibold {currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-white' : 'text-slate-400'}">Install</span>
-            </div>
-        </div>
+        <nav aria-label="Installation steps" class="border-b border-slate-800/80 pb-6">
+            <ol class="flex items-center gap-2 text-sm">
+                <li aria-current={currentScreen === 'select' ? 'step' : undefined}>
+                    <span class="flex items-center gap-1.5
+                        {currentScreen === 'select' ? 'text-white font-semibold' :
+                         'text-rayhunter-green'}">
+                        {#if currentScreen !== 'select'}
+                            <span aria-hidden="true">✓</span>
+                        {/if}
+                        Device
+                    </span>
+                </li>
+                <li aria-hidden="true" class="text-slate-700">›</li>
+                <li aria-current={currentScreen === 'configure' ? 'step' : undefined}>
+                    <span class="
+                        {currentScreen === 'configure' ? 'text-white font-semibold' :
+                         currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-rayhunter-green flex items-center gap-1.5' :
+                         'text-slate-600'}">
+                        {#if currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure'}
+                            <span aria-hidden="true">✓</span>
+                        {/if}
+                        Configure
+                    </span>
+                </li>
+                <li aria-hidden="true" class="text-slate-700">›</li>
+                <li aria-current={currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'step' : undefined}>
+                    <span class="
+                        {currentScreen === 'installing' || currentScreen === 'success' || currentScreen === 'failure' ? 'text-white font-semibold' :
+                         'text-slate-600'}">
+                        Install
+                    </span>
+                </li>
+            </ol>
+        </nav>
 
         {#if currentScreen === 'select'}
             <div class="flex flex-col items-center gap-8 py-2">
