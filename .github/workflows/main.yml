@@ -468,10 +468,23 @@ jobs:
           cd installer-gui
           npm install
           npm run tauri build -- --target ${{ matrix.platform.target }}
+      - name: Create portable zip from AppImage
+        shell: bash
+        run: |
+          appimage=$(ls target/${{ matrix.platform.target }}/release/bundle/appimage/*.AppImage)
+          chmod +x "$appimage"
+          "$appimage" --appimage-extract
+          mv squashfs-root rayhunter-installer-${{ matrix.platform.name }}
+          zip -r rayhunter-installer-${{ matrix.platform.name }}.zip rayhunter-installer-${{ matrix.platform.name }}/
       - uses: actions/upload-artifact@v4
         with:
           name: gui-installer-${{ matrix.platform.name }}-appimage
           path: target/${{ matrix.platform.target }}/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-installer-${{ matrix.platform.name }}-zip
+          path: rayhunter-installer-${{ matrix.platform.name }}.zip
           if-no-files-found: error
 
   build_installer_gui_macos:
