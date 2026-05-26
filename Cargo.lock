@@ -2949,8 +2949,6 @@ dependencies = [
  "anyhow",
  "clap",
  "installer",
- "nusb",
- "reqwest 0.12.20",
  "serde",
  "serde_json",
  "shlex",

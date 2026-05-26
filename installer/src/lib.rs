@@ -6,6 +6,8 @@ use env_logger::Env;
 use anyhow::bail;
 
 mod connection;
+pub mod detect;
+pub use detect::{detect_devices, DetectedDevice};
 mod files;
 pub(crate) use files::*;
 
