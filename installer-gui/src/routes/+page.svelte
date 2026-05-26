@@ -1,4 +1,5 @@
 <script lang="ts">
+    import type { DetectedDevice } from '$lib/tauri';
     import { autodetectDevice, installRayhunter, listen, openUrl, getCurrentWindow } from '$lib/tauri';
     import type { PageProps } from './$types';
 
@@ -13,7 +14,7 @@
     let installerError = $state<string>('');
     let logContainer = $state<HTMLDivElement | null>(null);
 
-    let detectedDevices = $state([] as Awaited<ReturnType<typeof autodetectDevice>>);
+    let detectedDevices = $state<DetectedDevice[]>([]);
     let isDetecting = $state<boolean>(false);
     let hasAttemptedDetection = $state<boolean>(false);
     let deviceDisconnected = $state<boolean>(false);
@@ -89,7 +90,7 @@
         detectedDevices.find(d => d.id === selectedDeviceId) ?? null
     );
 
-    function selectDevice(dev: (typeof detectedDevices)[number]) {
+    function selectDevice(dev: DetectedDevice) {
         selectedDeviceId = dev.id;
         const index = data.subcommands.findIndex(s => s.command === dev.subcommand);
         selectedSubcommandIndex = index;
