@@ -7,7 +7,8 @@ export interface DetectedDevice {
     id: string;
     subcommand: string;
     display_name: string;
-    admin_ip?: string;
+    dashboard_url?: string;
+    default_args: Record<string, string>;
 }
 
 export function autodetectDevice(): Promise<DetectedDevice[]> {

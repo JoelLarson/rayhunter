@@ -101,11 +101,7 @@
         
         for (const arg of sub.arguments) {
             if (arg.takes_values) {
-                if (arg.flag === '--admin-ip') {
-                    newVals[arg.flag] = dev.admin_ip || '192.168.0.1';
-                } else {
-                    newVals[arg.flag] = '';
-                }
+                newVals[arg.flag] = dev.default_args[arg.flag] ?? '';
             } else {
                 newVals[arg.flag] = false;
             }
@@ -168,14 +164,8 @@
         navigator.clipboard.writeText(installerOutput);
     }
 
-    function dashboardUrl(): string {
-        const customIp = argsValues['--admin-ip'];
-        const ip = typeof customIp === 'string' && customIp.trim() !== '' ? customIp.trim() : selectedDevice?.admin_ip ?? '192.168.0.1';
-        return `http://${ip}:8080`;
-    }
-
     async function openDashboard() {
-        await openUrl(dashboardUrl());
+        await openUrl(selectedDevice!.dashboard_url!);
     }
 </script>
 
@@ -553,18 +543,18 @@
                     </p>
                 </div>
 
-                {#if selectedDevice?.admin_ip}
+                {#if selectedDevice?.dashboard_url}
                     <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col gap-2 text-left w-full text-sm">
                         <span class="font-bold text-slate-300">Accessing Rayhunter</span>
                         <p class="text-slate-400">
                             The web dashboard runs directly on the device. Connect your browser to the device to view cellular network alerts.
                         </p>
-                        <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {dashboardUrl()}</span>
+                        <span class="font-mono text-xs text-rayhunter-green mt-1">Dashboard Address: {selectedDevice.dashboard_url}</span>
                     </div>
                 {/if}
 
                 <div class="flex flex-col gap-3 w-full mt-4">
-                    {#if selectedDevice?.admin_ip}
+                    {#if selectedDevice?.dashboard_url}
                         <button
                             class="w-full py-3 rounded-xl font-bold bg-rayhunter-green text-slate-950 hover:bg-opacity-90 shadow-lg shadow-rayhunter-green/10 transition-all duration-200 cursor-pointer"
                             onclick={openDashboard}
